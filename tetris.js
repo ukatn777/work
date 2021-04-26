@@ -223,26 +223,19 @@ class TetriminoInfo{
 	}
 
 	/**
-	 * 1マス下に移動させて描画する
-	 * private
-	 */
-	_drop(){
-		this.undraw();
-		this.row+=1;
-		this.draw();
-	}
-
-	/**
 	 *1マス下に移動させる
 	 * @return {*} 移動できたらtrue/できなかったらfalse
 	 * @memberof TetriminoInfo
 	 */
 	drop(){
+		let result=false;
+		this.undraw();
 		if(this._canDrop()){
-			this._drop();
-			return true;
+			this.row+=1;
+			result=true;
 		}
-		return false;
+		this.draw();
+		return result;
 	}
 
 	/**
@@ -263,18 +256,6 @@ class TetriminoInfo{
 	}
 
 	/**
-	 *横に移動する
-	 *private
-	 * @param {*} columnAdder columnの変位、左なら-1,右なら+1
-	 * @memberof TetriminoInfo true
-	 */
-	_move(columnAdder){
-		this.undraw();
-		this.column+=columnAdder;
-		this.draw();
-	}
-
-	/**
 	 *横に移動できるかをチェックして、移動可能なら移動させる
 	 *
 	 * @param {*} columnAdder columnの変位左なら-1,右なら+1
@@ -282,11 +263,14 @@ class TetriminoInfo{
 	 * @returns 移動できたならtrue,できなかったらfalse
 	 */
 	move(columnAdder){
+		let result=false;
+		this.undraw();
 		if(this._canMove(columnAdder)){
-			this._move(columnAdder);
-			return true;
+			this.column+=columnAdder;
+			result=true;
 		}
-		return false;
+		this.draw();
+		return result;
 	}
 
 	/**
@@ -305,7 +289,7 @@ class TetriminoInfo{
 		let result=[];
 		for(let i=0; i<this.tetrimino.length; ++i){
 			let block=this.tetrimino[i];
-			let temp=[rotation*block[1], rotation*block[0]];
+			let temp=[rotation*block[1], -rotation*block[0]];
 			if(!canPutBlock(this.row+temp[0], this.column+temp[1])){
 				return null;
 			}
@@ -377,9 +361,7 @@ function tickDropping(){
 	else{
 		drawAllBlock();
 		if(currentTetriminoInfo.drop()){
-			//currentTetriminoInfo._drop();
-			//drawAllBlock();
-			//currentTetriminoInfo.draw();
+
 		}
 		else{
 			currentTetriminoInfo.draw();
