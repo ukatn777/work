@@ -8,7 +8,7 @@ var blockSize=38;
 //ゲームの設定
 var rowCount=20;
 var columnCount=10;
-var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],0が空きブロック、1以上はブロックあり
+var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空きブロック、0以上はブロックあり
 
 const STYLE_BLANK='blankblock';
 const styleArray=['tetrimino1', 'tetrimino2', 'tetrimino3', 'tetrimino4', 'tetrimino5', 'tetrimino6', 'tetrimino7']
@@ -28,7 +28,8 @@ const tetriminoArray=[
 
 //ゲームの状態
 const STATE_WAIT=0;
-const STATE_DROPPING=1;
+const STATE_DROPPING=1; //テトリミノ落下中
+const STATE_ERASING=2; //テトリミノ消去中
 var gameState=STATE_WAIT;
 var frame=0;
 var currentTetriminoInfo=null;
@@ -327,6 +328,9 @@ function tick(){
 		case STATE_DROPPING:
 			tickDropping();
 			break;
+		case STATE_ERASING:
+			tickErasing();
+			break;
 		default:
 			break;
 	}
@@ -360,14 +364,50 @@ function tickDropping(){
 	}
 	else{
 		drawAllBlock();
-		if(currentTetriminoInfo.drop()){
-
-		}
-		else{
+		let dropped=currentTetriminoInfo.drop()
+		if(!dropped){ //落下できない場合
 			currentTetriminoInfo.draw();
 			currentTetriminoInfo.putOnCurrentPosition();
 			currentTetriminoInfo=null;
-			gameState=STATE_WAIT;
+			gameState=STATE_ERASING;
 		}
 	}
+}
+
+/**
+ * gameStateがSTATE_ERASINGの時の処理
+ * 
+ */
+function tickErasing(){
+	eraseFilledLine();
+	drawAllBlock();
+	gameState=STATE_WAIT;
+}
+
+/**
+ * ブロックを消せるlineを消去
+ */
+function eraseFilledLine(){
+	blockArray=blockArray.filter(function(rowArray){
+		for(let c=0; c<columnCount; ++c){
+			if(rowArray[c]<0){
+				return true;
+			}
+		}
+		return false;
+	});
+	while(blockArray.length<rowCount){
+		blockArray.unshift(generateNewRowLine());
+	}
+}
+
+/**
+ * 新しい行の配列を作成
+ */
+function generateNewRowLine(){
+	result=[];
+	for(let c=0; c<columnCount; ++c){
+		result.push(-1);
+	}
+	return result;
 }
