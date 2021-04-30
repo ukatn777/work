@@ -10,6 +10,8 @@ var rowCount=20;
 var columnCount=10;
 var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空きブロック、0以上はブロックあり
 
+
+//定数
 const STYLE_BLANK='blankblock';
 const styleArray=['tetrimino1', 'tetrimino2', 'tetrimino3', 'tetrimino4', 'tetrimino5', 'tetrimino6', 'tetrimino7']
 const tetriminoArray=[
@@ -25,15 +27,17 @@ const tetriminoArray=[
 *  [0,-1]  [0,0]  [0,1]
 *  [1,-1]  [1,0]  [1,1]
 */
-
-//ゲームの状態
 const STATE_WAIT=0;
 const STATE_DROPPING=1; //テトリミノ落下中
 const STATE_ERASING=2; //テトリミノ消去中
+const TICK_FIX=5; //落とせなくなってから固定されるまでにかかるtick数
+
+//ゲームの状態
 var gameState=STATE_WAIT;
 var frame=0;
 var currentTetriminoInfo=null;
 var nextTetriminoInfo=null;
+var fixCount=TICK_FIX;
 
 $(document).ready(function(){
 	$('table#blocktable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
@@ -365,11 +369,17 @@ function tickDropping(){
 	else{
 		drawAllBlock();
 		let dropped=currentTetriminoInfo.drop()
-		if(!dropped){ //落下できない場合
-			currentTetriminoInfo.draw();
-			currentTetriminoInfo.putOnCurrentPosition();
-			currentTetriminoInfo=null;
-			gameState=STATE_ERASING;
+		if(dropped){ //落下できた場合
+			fixCount=TICK_FIX;
+		}
+		else{
+			fixCount-=1;
+			if(fixCount<=0){
+				currentTetriminoInfo.draw();
+				currentTetriminoInfo.putOnCurrentPosition();
+				currentTetriminoInfo=null;
+				gameState=STATE_ERASING;
+			}
 		}
 	}
 }
