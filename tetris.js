@@ -213,18 +213,30 @@ class TetriminoInfo{
 	}
 
 	/**
+	 *指定しただけrow,columnをずらした位置に置けるかどうか調べる
+	 *
+	 * @param {*} rowAdder
+	 * @param {*} columnAdder
+	 * @memberof TetriminoInfo
+	 * @returns true/false
+	 */
+	_canShiftTo(rowAdder, columnAdder){
+		for(let i=0; i<this.tetrimino.length; ++i){
+			let block=this.tetrimino[i];
+			if(!canPutBlock(this.row+rowAdder+block[0], this.column+columnAdder+block[1])){
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
 	 * 1マス下に置けるかを調べる
 	 * private
 	 * @returns true/false
 	 */
 	_canDrop(){
-		for(let i=0; i<this.tetrimino.length; ++i){
-			let block=this.tetrimino[i];
-			if(!canPutBlock(this.row+1+block[0], this.column+block[1])){
-				return false;
-			}
-		}
-		return true;
+		return this._canShiftTo(1,0);
 	}
 
 	/**
@@ -251,13 +263,7 @@ class TetriminoInfo{
 	 * @returns true/false
 	 */
 	_canMove(columnAdder){
-		for(let i=0; i<this.tetrimino.length; ++i){
-			let block=this.tetrimino[i];
-			if(!canPutBlock(this.row+block[0], this.column+columnAdder+block[1])){
-				return false;
-			}
-		}
-		return true;
+		return this._canShiftTo(0,columnAdder);
 	}
 
 	/**
