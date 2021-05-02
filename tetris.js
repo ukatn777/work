@@ -30,6 +30,8 @@ const tetriminoArray=[
 const STATE_WAIT=0;
 const STATE_DROPPING=1; //テトリミノ落下中
 const STATE_ERASING=2; //テトリミノ消去中
+const STATE_GAMEOVER=3; //ゲームオーバー
+
 const TICK_FIX=5; //落とせなくなってから固定されるまでにかかるtick数
 
 //ゲームの状態
@@ -58,7 +60,7 @@ $(document).ready(function(){
 					currentTetriminoInfo.rotate(1);
 					break;
 				default:
-					console.log(eo.key);
+					
 					break;
 			}
 			currentTetriminoInfo.draw();
@@ -120,9 +122,15 @@ function changeSingleBlockColor(row, column, style){
  * 指定した位置にブロックを置けるかどうかを調べる
  * @param {*} row
  * @param {*} column
+ * @param {*} resultOutOfIndex 範囲外の時に返される値(default=false)
  * @return {*} true/false
  */
-function canPutBlock(row, column){
+function canPutBlock(row, column, resultOutOfIndex=false){
+	if(row<0 || row>=rowCount || column<0 || column>=columnCount){
+		return resultOutOfIndex;
+	}
+	return blockArray[row][column]<0;
+
 	if(row>=0 && row<rowCount && column>=0 && column<columnCount){
 		return blockArray[row][column]<0;
 	}
@@ -323,6 +331,22 @@ class TetriminoInfo{
 		}
 		this.draw();
 	}
+
+	/**
+	 * ゲームオーバー状態であるかどうか
+	 *
+	 * @return {*} 
+	 * @memberof TetriminoInfo
+	 */
+	isGameOver(){
+		for(let i=0; i<this.tetrimino.length; ++i){
+			let block=this.tetrimino[i];
+			if(!canPutBlock(this.row+block[0], this.column+block[1], true)){
+				return true;
+			}
+		}
+		return false;
+	}
 }
 
 /**
@@ -340,6 +364,9 @@ function tick(){
 			break;
 		case STATE_ERASING:
 			tickErasing();
+			break;
+		case STATE_GAMEOVER:
+			tickGameOver();
 			break;
 		default:
 			break;
@@ -359,6 +386,10 @@ function tickWaiting(){
 			currentTetriminoInfo=nextTetriminoInfo;
 		}
 		nextTetriminoInfo=TetriminoInfo.generateRandomTetrimino();
+	}
+	if(currentTetriminoInfo.isGameOver()){
+		gameState=STATE_GAMEOVER;
+		return;
 	}
 	currentTetriminoInfo.draw();
 	gameState=STATE_DROPPING;
@@ -426,4 +457,8 @@ function generateNewRowLine(){
 		result.push(-1);
 	}
 	return result;
+}
+
+function tickGameOver(){
+	console.log("GAME OVER");
 }
