@@ -9,7 +9,7 @@ var blockSize=38;
 var rowCount=20;
 var columnCount=10;
 var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空きブロック、0以上はブロックあり
-
+var subtableRowCol=4;
 
 //定数
 const STYLE_BLANK='blankblock';
@@ -23,9 +23,9 @@ const tetriminoArray=[
 	[[0,0], [0,-1], [-1,0], [-1,1]],
 	[[0,0], [-1,0], [0,1], [-1,1]],
 ];
-/* [-1,-1] [-1,0] [-1,1]
-*  [0,-1]  [0,0]  [0,1]
-*  [1,-1]  [1,0]  [1,1]
+/* [-1,-1] [-1,0] [-1,1] [-1,2]
+*  [0,-1]  [0,0]  [0,1]  [0,2]
+*  [1,-1]  [1,0]  [1,1]  [1,2]
 */
 const STATE_WAIT=0;
 const STATE_DROPPING=1; //テトリミノ落下中
@@ -60,7 +60,7 @@ $(document).ready(function(){
 					currentTetriminoInfo.rotate(1);
 					break;
 				default:
-					
+
 					break;
 			}
 			currentTetriminoInfo.draw();
@@ -109,10 +109,11 @@ function drawAllBlock(){
  * @param {*} row
  * @param {*} column
  * @param {*} style
+ * @param {*} blocktable 変更するテーブルのID,defaultでblocktable
  */
-function changeSingleBlockColor(row, column, style){
+function changeSingleBlockColor(row, column, style, tableid="blocktable"){
 	if(row>=0 && row<rowCount && column>=0 && column<columnCount){
-		var block=$('table#blocktable tr:nth-child('+(row+1)+') td:nth-child('+(column+1)+')');
+		var block=$('table#'+tableid+' tr:nth-child('+(row+1)+') td:nth-child('+(column+1)+')');
 		block.removeAttr('class');
 		block.addClass(style);
 	}
@@ -130,11 +131,6 @@ function canPutBlock(row, column, resultOutOfIndex=false){
 		return resultOutOfIndex;
 	}
 	return blockArray[row][column]<0;
-
-	if(row>=0 && row<rowCount && column>=0 && column<columnCount){
-		return blockArray[row][column]<0;
-	}
-	return false;
 }
 
 /**
@@ -347,6 +343,28 @@ class TetriminoInfo{
 		}
 		return false;
 	}
+
+	/**
+	 *指定したsubtableに描画
+	 *
+	 * @param {*} tableid
+	 * @memberof TetriminoInfo
+	 */
+	_drawOnSubtable(tableid){
+		for(let r=0; r<subtableRowCol; ++r){
+			for(let c=0; c<subtableRowCol; ++c){
+				changeSingleBlockColor(r,c,STYLE_BLANK,tableid);
+			}
+		}
+		for(let i=0; i<this.tetrimino.length; ++i){
+			let block=this.tetrimino[i];
+			changeSingleBlockColor(block[0]+2, block[1]+1, this.style, tableid);
+		}
+	}
+
+	drawOnNextTable(){
+		this._drawOnSubtable("nexttable");
+	}
 }
 
 /**
@@ -392,6 +410,9 @@ function tickWaiting(){
 		return;
 	}
 	currentTetriminoInfo.draw();
+	if(nextTetriminoInfo!=null){
+		nextTetriminoInfo.drawOnNextTable();
+	}
 	gameState=STATE_DROPPING;
 }
 
