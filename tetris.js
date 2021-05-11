@@ -8,6 +8,8 @@ var blockSize=38;
 //ゲームの設定
 var rowCount=20;
 var columnCount=10;
+var initrow=0; //テトリミノの初期位置
+var initcolumn=4; //同上
 var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空きブロック、0以上はブロックあり
 var subtableRowCol=4;
 
@@ -39,10 +41,14 @@ var gameState=STATE_WAIT;
 var frame=0;
 var currentTetriminoInfo=null;
 var nextTetriminoInfo=null;
+var holdTetriminoInfo=null;
 var fixCount=TICK_FIX;
+var holdUsed=false;
 
 $(document).ready(function(){
 	$('table#blocktable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
+	$('table#nexttable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
+	$('table#holdtable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
 
 	$(document).on("keydown",(function(eo){
 		if(currentTetriminoInfo!=null){
@@ -53,19 +59,25 @@ $(document).ready(function(){
 				case "ArrowLeft":
 					currentTetriminoInfo.move(-1);
 					break;
+				case "ArrowDown":
+					currentTetriminoInfo.drop();
+					break;
 				case "z":
 					currentTetriminoInfo.rotate(-1);
 					break;
 				case "c":
 					currentTetriminoInfo.rotate(1);
 					break;
+				case "Shift":
+					holdCurrentTetrimino();
+					break;
 				default:
-
 					break;
 			}
 			currentTetriminoInfo.draw();
 		}
 	}));
+
 
 	gameState=STATE_DROPPING;
 
@@ -146,6 +158,33 @@ function putBlock(row, column, index){
 	}
 }
 
+/**
+ *現在のテトリミノをholdする
+ *
+ */
+function holdCurrentTetrimino(){
+	if(holdUsed){return;}
+	let temp=holdTetriminoInfo;
+	holdTetriminoInfo=currentTetriminoInfo;
+	holdTetriminoInfo.setInitPosition();
+	holdTetriminoInfo.setInitRotation();
+	if(temp!=null){
+		currentTetriminoInfo=temp;
+	}
+	else{
+		currentTetriminoInfo=nextTetriminoInfo;
+		nextTetriminoInfo=TetriminoInfo.generateRandomTetrimino();
+		nextTetriminoInfo.drawOnNextTable();
+	}
+	holdUsed=true;
+	if(holdTetriminoInfo!=null){
+		holdTetriminoInfo.drawOnHoldTable();
+	}
+	if(currentTetriminoInfo.isGameOver()){
+		gameState=STATE_GAMEOVER;
+	}
+}
+
 class TetriminoInfo{
 	constructor(index, row, column){
 		this.index=index;
@@ -157,10 +196,11 @@ class TetriminoInfo{
 		this.row=row;
 		this.column=column;
 		this.style=styleArray[index];
+		this.rotateSum=0;
 	}
 
 	static generateNextTetrimino(index){
-		return new TetriminoInfo(index,0,4);
+		return new TetriminoInfo(index,initrow,initcolumn);
 	}
 
 	/**
@@ -297,15 +337,16 @@ class TetriminoInfo{
 	 *　[0 -1][r]=[-c]　
 	 *　[1  0][c] [ r]
 	 * @param {*} rotation 回転方向,左回転なら-1,右回転なら1
+	 * @param {*} isForce trueの場合ブロックが置けない場合でも新しいテトリミノ配列を返す
 	 * @memberof TetriminoInfo
 	 * @returns 新しいtetrimino配列、回転できないならnull
 	 */
-	_canRotate(rotation){
+	_canRotate(rotation, isForce=false){
 		let result=[];
 		for(let i=0; i<this.tetrimino.length; ++i){
 			let block=this.tetrimino[i];
 			let temp=[rotation*block[1], -rotation*block[0]];
-			if(!canPutBlock(this.row+temp[0], this.column+temp[1])){
+			if(!canPutBlock(this.row+temp[0], this.column+temp[1]) && !isForce){
 				return null;
 			}
 			result.push(temp);
@@ -316,7 +357,7 @@ class TetriminoInfo{
 	/**
 	 *回転させる
 	 *
-	 * @param {*} rotation
+	 * @param {*} rotation 回転方向,左回転なら-1,右回転なら1
 	 * @memberof TetriminoInfo
 	 */
 	rotate(rotation){
@@ -324,6 +365,10 @@ class TetriminoInfo{
 		let nextMino=this._canRotate(rotation);
 		if(nextMino!=null){
 			this.tetrimino=nextMino;
+			this.rotateSum+=rotation;
+			if(this.rotateSum==-4 || this.rotateSum==4){ //一回転したら回転していないのと同じ
+				this.rotateSum=0;
+			}
 		}
 		this.draw();
 	}
@@ -364,6 +409,33 @@ class TetriminoInfo{
 
 	drawOnNextTable(){
 		this._drawOnSubtable("nexttable");
+	}
+
+	drawOnHoldTable(){
+		this._drawOnSubtable("holdtable");
+	}
+
+	/**
+	 *初期位置に戻す
+	 *
+	 * @memberof TetriminoInfo
+	 */
+	setInitPosition(){
+		this.row=initrow;
+		this.column=initcolumn;
+	}
+
+	/**
+	 *初期の回転に戻す
+	 *
+	 * @memberof TetriminoInfo
+	 */
+	setInitRotation(){
+		while(this.rotateSum!=0){
+			let num=this.rotateSum>0? -1:1;
+			this.tetrimino=this._canRotate(num, true);
+			this.rotateSum+=num;
+		}
 	}
 }
 
@@ -436,6 +508,7 @@ function tickDropping(){
 				currentTetriminoInfo.draw();
 				currentTetriminoInfo.putOnCurrentPosition();
 				currentTetriminoInfo=null;
+				holdUsed=false;
 				gameState=STATE_ERASING;
 			}
 		}
