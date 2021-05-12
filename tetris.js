@@ -16,7 +16,7 @@ var mainBoardX=holdBoardX+blockSize*4+margin;
 var mainBoardY=0;
 var nextBoardX=mainBoardX+blockSize*columnCount+margin;
 var nextBoardY=blockSize;
-var fontSize=30;
+var labelFontSize=30;
 
 //ゲームの設定
 var initrow=0; //テトリミノの初期位置
@@ -38,32 +38,65 @@ const tetriminoArray=[
 *  [0,-1]  [0,0]  [0,1]  [0,2]
 *  [1,-1]  [1,0]  [1,1]  [1,2]
 */
-const STATE_WAIT=0;
-const STATE_DROPPING=1; //テトリミノ落下中
-const STATE_ERASING=2; //テトリミノ消去中
-const STATE_GAMEOVER=3; //ゲームオーバー
+const STATE_TITLE=0;
+const STATE_HELP=1;
+const STATE_WAIT=2;
+const STATE_DROPPING=3; //テトリミノ落下中
+const STATE_ERASING=4; //テトリミノ消去中
+const STATE_GAMEOVER=5; //ゲームオーバー
 
 const TICK_FIX=5; //落とせなくなってから固定されるまでにかかるtick数
 
 //ゲームの状態
-var gameState=STATE_WAIT;
-var frame=0;
-var currentTetriminoInfo=null;
-var nextTetriminoInfo=null;
-var holdTetriminoInfo=null;
-var fixCount=TICK_FIX;
-var holdUsed=false;
-var deletedLineSum=0;
+var gameState=STATE_TITLE;
+
+//タイトル,help画面
+const MENU_START=0;
+const MENU_HELP=1;
+var isCanvasDraw=false;
+var selectedMenu=MENU_START;
+
+//ゲーム
+var currentTetriminoInfo;
+var nextTetriminoInfo;
+var holdTetriminoInfo;
+var fixCount;
+var holdUsed;
+var deletedLineSum;
 
 $(document).ready(function(){
 	canvas=$("#canvas")[0];
 	if(canvas.getContext){
 		context=canvas.getContext('2d');
-		initializeCanvasGame();
 	}
 
+	$(document).on("keydown",function(eo){
+		if(gameState==STATE_TITLE){
+			switch(eo.key){
+				case "Enter":
+					selectCurrentMenu();
+					break;
+				case "ArrowUp":
+					chooseMenuStart();
+					break;
+				case "ArrowDown":
+					chooseMenuHelp();
+					break;
+				default:
+					break;
+			}
+		}
+	});
+
+	$(document).on("keydown",function(eo){
+		if(gameState==STATE_HELP && eo.key=="Escape"){
+			isCanvasDraw=false;
+			gameState=STATE_TITLE;
+		}
+	});
+
 	$(document).on("keydown",(function(eo){
-		if(currentTetriminoInfo!=null){
+		if(gameState==STATE_DROPPING && currentTetriminoInfo!=null){
 			switch(eo.key){
 				case "ArrowRight":
 					currentTetriminoInfo.move(1);
@@ -90,26 +123,56 @@ $(document).ready(function(){
 		}
 	}));
 
-	gameState=STATE_DROPPING;
+	gameState=STATE_TITLE;
 
 	setInterval(function(){
 		tick();
 	},100) //10tick/sec
 });
 
-function initializeCanvasGame(){
+function drawTitle(){
+	context.clearRect(0,0,canvas.width,canvas.height);
+	drawTextAlignCenter("TETRIS",canvas.width/2,150,175);
+	drawTitleMenu();
+}
+
+function drawTitleMenu(){
+	colorStart=selectedMenu==MENU_START?"#FFFFFF":"#404040";
+	colorHelp=selectedMenu==MENU_HELP?"#FFFFFF":"#404040";
+	drawTextAlignCenter("START",canvas.width/2,450,50,colorStart);
+	drawTextAlignCenter("HELP",canvas.width/2,525,50,colorHelp);
+}
+
+function initializeGame(){
+	blockArray=generateInitialBlockArray()
+	currentTetriminoInfo=null;
+	nextTetriminoInfo=null;
+	holdTetriminoInfo=null;
+	fixCount=TICK_FIX;
+	holdUsed=false;
+	deletedLineSum=0;
+
 	context.clearRect(0,0,canvas.width,canvas.height);
 	drawMainBoard();
 	drawNextBoard();
 	drawHoldBoard();
 	drawConstantLabel();
 	drawLineSumLabel();
+
+	gameState=STATE_WAIT;
 }
 
-/**
- *メインのboardを描画する
- *
- */
+function drawHelp(){
+	context.clearRect(0,0,canvas.width,canvas.height);
+	drawTextAlignCenter("Z : Rotate Left",canvas.width/2,100,50);
+	drawTextAlignCenter("C : Rotate Right",canvas.width/2,175,50);
+	drawTextAlignCenter("<- : Move Left",canvas.width/2,250,50);
+	drawTextAlignCenter("-> : Move Right",canvas.width/2,325,50);
+	drawTextAlignCenter("Shift : hold",canvas.width/2,400,50);
+	
+	drawTextAlignCenter("back : Escape",canvas.width/2,600,50);
+}
+
 function drawMainBoard(){
 	let x=mainBoardX;
 	let y=mainBoardY;
@@ -125,31 +188,14 @@ function drawMainBoard(){
 	}
 }
 
-/**
- *NEXTを表示するboardを描画する
- *
- */
 function drawNextBoard(){
 	drawSubBoard(nextBoardX,nextBoardY,4,4,nextTetriminoInfo);
 }
 
-/**
- *HOLDを表示するboardを描画する
- *
- */
 function drawHoldBoard(){
 	drawSubBoard(holdBoardX,holdBoardY,4,4,holdTetriminoInfo);
 }
 
-/**
- *メイン以外のboardの描画
- *
- * @param {*} startX
- * @param {*} startY
- * @param {*} boardRowCount
- * @param {*} boardColumnCount
- * @param {*} tetriminoInfo
- */
 function drawSubBoard(startX,startY,boardRowCount,boardColumnCount,tetriminoInfo){
 	let x=startX;
 	let y=startY;
@@ -183,8 +229,7 @@ function drawConstantLabel(){
 }
 
 function drawLineSumLabel(){
-	context.clearRect(nextBoardX,blockSize*7,canvas.width-nextBoardX,blockSize);
-	drawTextAlignLeft(deletedLineSum,nextBoardX+blockSize,blockSize*7);
+	drawTextAlignLeft(deletedLineSum,nextBoardX+blockSize,blockSize*7,labelFontSize);
 }
 
 /**
@@ -194,17 +239,19 @@ function drawLineSumLabel(){
  * @param {*} x テキストの中央上のx
  * @param {*} y テキストの中央上のy
  */
-function drawTextAlignCenter(text,x,y){
-	context.fillStyle='#FFFFFF';
-	context.font="bold "+fontSize+"px serif";
+function drawTextAlignCenter(text,x,y,fontSize=labelFontSize,color="#FFFFFF",font="bold "+fontSize+"px serif"){
+	context.fillStyle=color;
+	context.font=font;
 	let width=context.measureText(text).width;
+	context.clearRect(x-width/2,y,width,fontSize);
 	context.fillText(text,x-width/2,y+fontSize);
 }
 
-function drawTextAlignLeft(text,x,y){
-	context.fillStyle='#FFFFFF';
-	context.font="bold "+fontSize+"px serif";
+function drawTextAlignLeft(text,x,y,fontSize=labelFontSize,color="#FFFFFF",font="bold "+fontSize+"px serif"){
+	context.fillStyle=color;
+	context.font=font;
 	let width=context.measureText(text).width;
+	context.clearRect(x,y,width,fontSize);
 	context.fillText(text,x,y+fontSize);
 }
 
@@ -229,6 +276,28 @@ function drawTetrimino(boardZeroX,boardZeroY,tetriminoInfo,color=tetriminoInfo.c
 function drawSingleBlock(x,y,color){
 	context.fillStyle=color;
 	context.fillRect(x+1,y+1,blockSize-2,blockSize-2);
+}
+
+function chooseMenuStart(){
+	selectedMenu=MENU_START;
+	drawTitleMenu();
+}
+
+function chooseMenuHelp(){
+	selectedMenu=MENU_HELP;
+	drawTitleMenu();
+}
+
+function selectCurrentMenu(){
+	isCanvasDraw=false;
+	switch(selectedMenu){
+		case MENU_START:
+			initializeGame();
+			break;
+		case MENU_HELP:
+			gameState=STATE_HELP;
+			break;
+	}
 }
 
 /**
@@ -501,8 +570,13 @@ class TetriminoInfo{
  *
  */
 function tick(){
-	frame+=1;
 	switch(gameState){
+		case STATE_TITLE:
+			tickTitle();
+			break;
+		case STATE_HELP:
+			tickHelp();
+			break;
 		case STATE_WAIT:
 			tickWaiting();
 			break;
@@ -517,6 +591,20 @@ function tick(){
 			break;
 		default:
 			break;
+	}
+}
+
+function tickTitle(){
+	if(!isCanvasDraw){
+		drawTitle();
+		isCanvasDraw=true;
+	}
+}
+
+function tickHelp(){
+	if(!isCanvasDraw){
+		drawHelp();
+		isCanvasDraw=true;
 	}
 }
 
