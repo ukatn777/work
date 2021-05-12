@@ -16,7 +16,6 @@ var mainBoardX=holdBoardX+blockSize*4+margin;
 var mainBoardY=0;
 var nextBoardX=mainBoardX+blockSize*columnCount+margin;
 var nextBoardY=blockSize;
-
 var fontSize=30;
 
 //ゲームの設定
@@ -26,8 +25,6 @@ var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空
 var subtableRowCol=4;
 
 //定数
-const STYLE_BLANK='blankblock';
-const styleArray=['tetrimino1', 'tetrimino2', 'tetrimino3', 'tetrimino4', 'tetrimino5', 'tetrimino6', 'tetrimino7']
 const tetriminoArray=[
 	[[0,0], [0,-1], [0,1], [0,2]],
 	[[0,0], [0,-1], [0,1], [-1,1]],
@@ -92,7 +89,6 @@ $(document).ready(function(){
 			drawCurrentTetriminoInfo();
 		}
 	}));
-
 
 	gameState=STATE_DROPPING;
 
@@ -212,7 +208,6 @@ function drawTextAlignLeft(text,x,y){
 	context.fillText(text,x,y+fontSize);
 }
 
-
 /**
  *boardにテトリミノを1つ描画
  *
@@ -314,7 +309,6 @@ class TetriminoInfo{
 		} //this.tetriminoは回転させるのでコピー
 		this.row=row;
 		this.column=column;
-		this.style=styleArray[index];
 		this.color=blockColors[index];
 		this.rotateSum=0;
 	}
