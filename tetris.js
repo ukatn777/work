@@ -1,13 +1,25 @@
 //描画の設定
-var contextWidth=600;
-var contextHeight=800;
-var blocksDrawStartX=15;
-var blocksDrawStartY=15;
-var blockSize=38;
+var canvas=null;
+var context=null;
 
-//ゲームの設定
+var blockSize=40;
+var blankColor='#222222';
+var blockColors=['#00FFFF', '#FF8000', '#0000FF', '#8000FF', '#FF0000', '#00FF00', '#FFFF00'];
+
 var rowCount=20;
 var columnCount=10;
+
+var margin=20;
+var holdBoardX=0;
+var holdBoardY=blockSize;
+var mainBoardX=holdBoardX+blockSize*4+margin;
+var mainBoardY=0;
+var nextBoardX=mainBoardX+blockSize*columnCount+margin;
+var nextBoardY=blockSize;
+
+var fontSize=30;
+
+//ゲームの設定
 var initrow=0; //テトリミノの初期位置
 var initcolumn=4; //同上
 var blockArray=generateInitialBlockArray(); //左上が[row=0,column=0],-1が空きブロック、0以上はブロックあり
@@ -44,11 +56,14 @@ var nextTetriminoInfo=null;
 var holdTetriminoInfo=null;
 var fixCount=TICK_FIX;
 var holdUsed=false;
+var deletedLineSum=0;
 
 $(document).ready(function(){
-	$('table#blocktable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
-	$('table#nexttable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
-	$('table#holdtable td:nth-child(n)').addClass(STYLE_BLANK); //初期化
+	canvas=$("#canvas")[0];
+	if(canvas.getContext){
+		context=canvas.getContext('2d');
+		initializeCanvasGame();
+	}
 
 	$(document).on("keydown",(function(eo){
 		if(currentTetriminoInfo!=null){
@@ -74,7 +89,7 @@ $(document).ready(function(){
 				default:
 					break;
 			}
-			currentTetriminoInfo.draw();
+			drawCurrentTetriminoInfo();
 		}
 	}));
 
@@ -86,6 +101,140 @@ $(document).ready(function(){
 	},100) //10tick/sec
 });
 
+function initializeCanvasGame(){
+	context.clearRect(0,0,canvas.width,canvas.height);
+	drawMainBoard();
+	drawNextBoard();
+	drawHoldBoard();
+	drawConstantLabel();
+	drawLineSumLabel();
+}
+
+/**
+ *メインのboardを描画する
+ *
+ */
+function drawMainBoard(){
+	let x=mainBoardX;
+	let y=mainBoardY;
+	for(let r=0; r<rowCount; ++r){
+		for(let c=0; c<columnCount; ++c){
+			block=blockArray[r][c]
+			color=(block>=0)?blockColors[block]:blankColor;
+			drawSingleBlock(x,y,color);
+			x+=blockSize;
+		}
+		x=mainBoardX;
+		y+=blockSize;
+	}
+}
+
+/**
+ *NEXTを表示するboardを描画する
+ *
+ */
+function drawNextBoard(){
+	drawSubBoard(nextBoardX,nextBoardY,4,4,nextTetriminoInfo);
+}
+
+/**
+ *HOLDを表示するboardを描画する
+ *
+ */
+function drawHoldBoard(){
+	drawSubBoard(holdBoardX,holdBoardY,4,4,holdTetriminoInfo);
+}
+
+/**
+ *メイン以外のboardの描画
+ *
+ * @param {*} startX
+ * @param {*} startY
+ * @param {*} boardRowCount
+ * @param {*} boardColumnCount
+ * @param {*} tetriminoInfo
+ */
+function drawSubBoard(startX,startY,boardRowCount,boardColumnCount,tetriminoInfo){
+	let x=startX;
+	let y=startY;
+	for(let r=0;r<boardRowCount;++r){
+		for(let c=0;c<boardColumnCount;++c){
+			drawSingleBlock(x,y,blankColor);
+			x+=blockSize;
+		}
+		x=startX;
+		y+=blockSize;
+	}
+	if(tetriminoInfo!=null){
+		let zeroX=startX+blockSize; //左から2つ目、上から3つ目のマスが[0,0]
+		let zeroY=startY+blockSize*2; //
+		drawTetrimino(zeroX,zeroY,tetriminoInfo,tetriminoInfo.color,0,0);
+	}
+}
+
+function drawCurrentTetriminoInfo(){
+	drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo);
+}
+
+function undrawCurrentTetriminoInfo(){
+	drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo,blankColor);
+}
+
+function drawConstantLabel(){
+	drawTextAlignCenter("HOLD",holdBoardX+blockSize*2,0);
+	drawTextAlignCenter("NEXT",nextBoardX+blockSize*2,0);
+	drawTextAlignLeft("LINE",nextBoardX,blockSize*6);
+}
+
+function drawLineSumLabel(){
+	context.clearRect(nextBoardX,blockSize*7,canvas.width-nextBoardX,blockSize);
+	drawTextAlignLeft(deletedLineSum,nextBoardX+blockSize,blockSize*7);
+}
+
+/**
+ *テキストを中央揃えで描画
+ *
+ * @param {*} text
+ * @param {*} x テキストの中央上のx
+ * @param {*} y テキストの中央上のy
+ */
+function drawTextAlignCenter(text,x,y){
+	context.fillStyle='#FFFFFF';
+	context.font="bold "+fontSize+"px serif";
+	let width=context.measureText(text).width;
+	context.fillText(text,x-width/2,y+fontSize);
+}
+
+function drawTextAlignLeft(text,x,y){
+	context.fillStyle='#FFFFFF';
+	context.font="bold "+fontSize+"px serif";
+	let width=context.measureText(text).width;
+	context.fillText(text,x,y+fontSize);
+}
+
+
+/**
+ *boardにテトリミノを1つ描画
+ *
+ * @param {*} boardZeroX boardの[0,0]のマスのX
+ * @param {*} boardZeroY boardの[0,0]のマスのY
+ * @param {*} tetriminoInfo 
+ * @param {*} row テトリミノの中心のrowIndex
+ * @param {*} column テトリミノの中心のcolumnIndex
+ */
+function drawTetrimino(boardZeroX,boardZeroY,tetriminoInfo,color=tetriminoInfo.color,row=tetriminoInfo.row,column=tetriminoInfo.column){
+	for(let i=0;i<tetriminoInfo.tetrimino.length;++i){
+		let block=tetriminoInfo.tetrimino[i];
+		let x=boardZeroX + blockSize*column + blockSize*block[1];
+		let y=boardZeroY + blockSize*row + blockSize*block[0];
+		drawSingleBlock(x,y,color);
+	}
+}
+
+function drawSingleBlock(x,y,color){
+	context.fillStyle=color;
+	context.fillRect(x+1,y+1,blockSize-2,blockSize-2);
+}
 
 /**
  * ゲーム開始時のテトリミノがない空のブロック配列を生成する
@@ -99,36 +248,6 @@ function generateInitialBlockArray(){
 		}
 	}
 	return result;
-}
-
-/**
- * 今置かれているblockを全て描画する
- */
-function drawAllBlock(){
-	for(let r=0; r<rowCount; ++r){
-		for(let c=0; c<columnCount; ++c){
-			let style=STYLE_BLANK;
-			if(blockArray[r][c]>=0){
-				style=styleArray[blockArray[r][c]];
-			}
-			changeSingleBlockColor(r,c,style);
-		}
-	}
-}
-
-/**
- * 指定した位置のブロックの色(スタイル)を変更する
- * @param {*} row
- * @param {*} column
- * @param {*} style
- * @param {*} blocktable 変更するテーブルのID,defaultでblocktable
- */
-function changeSingleBlockColor(row, column, style, tableid="blocktable"){
-	if(row>=0 && row<rowCount && column>=0 && column<columnCount){
-		var block=$('table#'+tableid+' tr:nth-child('+(row+1)+') td:nth-child('+(column+1)+')');
-		block.removeAttr('class');
-		block.addClass(style);
-	}
 }
 
 /**
@@ -166,19 +285,19 @@ function holdCurrentTetrimino(){
 	if(holdUsed){return;}
 	let temp=holdTetriminoInfo;
 	holdTetriminoInfo=currentTetriminoInfo;
-	holdTetriminoInfo.setInitPosition();
-	holdTetriminoInfo.setInitRotation();
+	holdTetriminoInfo.setAtInitPosition();
+	holdTetriminoInfo.setAtInitRotation();
 	if(temp!=null){
 		currentTetriminoInfo=temp;
 	}
 	else{
 		currentTetriminoInfo=nextTetriminoInfo;
 		nextTetriminoInfo=TetriminoInfo.generateRandomTetrimino();
-		nextTetriminoInfo.drawOnNextTable();
+		drawNextBoard();
 	}
 	holdUsed=true;
 	if(holdTetriminoInfo!=null){
-		holdTetriminoInfo.drawOnHoldTable();
+		drawHoldBoard();
 	}
 	if(currentTetriminoInfo.isGameOver()){
 		gameState=STATE_GAMEOVER;
@@ -196,6 +315,7 @@ class TetriminoInfo{
 		this.row=row;
 		this.column=column;
 		this.style=styleArray[index];
+		this.color=blockColors[index];
 		this.rotateSum=0;
 	}
 
@@ -212,37 +332,6 @@ class TetriminoInfo{
 	 */
 	static generateRandomTetrimino(){
 		return this.generateNextTetrimino(Math.floor(Math.random()*tetriminoArray.length));
-	}
-
-	/**
-	 *現在位置に指定したスタイルで描画
-	 *
-	 * @param {*} style
-	 * @memberof TetriminoInfo
-	 */
-	_drawWithStyle(style){
-		for(let i=0; i<this.tetrimino.length; ++i){
-			let block=this.tetrimino[i];
-			changeSingleBlockColor(this.row+block[0], this.column+block[1], style);
-		}
-	}
-
-	/**
-	 *現在位置に描画する
-	 *
-	 * @memberof TetriminoInfo
-	 */
-	draw(){
-		this._drawWithStyle(this.style);
-	}
-
-	/**
-	 *現在位置の描画を消す
-	 *
-	 * @memberof TetriminoInfo
-	 */
-	undraw(){
-		this._drawWithStyle(STYLE_BLANK);
 	}
 
 	/**
@@ -290,12 +379,12 @@ class TetriminoInfo{
 	 */
 	drop(){
 		let result=false;
-		this.undraw();
+		undrawCurrentTetriminoInfo();
 		if(this._canDrop()){
 			this.row+=1;
 			result=true;
 		}
-		this.draw();
+		drawCurrentTetriminoInfo();
 		return result;
 	}
 
@@ -319,12 +408,12 @@ class TetriminoInfo{
 	 */
 	move(columnAdder){
 		let result=false;
-		this.undraw();
+		undrawCurrentTetriminoInfo();
 		if(this._canMove(columnAdder)){
 			this.column+=columnAdder;
 			result=true;
 		}
-		this.draw();
+		drawCurrentTetriminoInfo();
 		return result;
 	}
 
@@ -361,7 +450,7 @@ class TetriminoInfo{
 	 * @memberof TetriminoInfo
 	 */
 	rotate(rotation){
-		this.undraw();
+		undrawCurrentTetriminoInfo();
 		let nextMino=this._canRotate(rotation);
 		if(nextMino!=null){
 			this.tetrimino=nextMino;
@@ -370,7 +459,7 @@ class TetriminoInfo{
 				this.rotateSum=0;
 			}
 		}
-		this.draw();
+		drawCurrentTetriminoInfo();
 	}
 
 	/**
@@ -390,37 +479,11 @@ class TetriminoInfo{
 	}
 
 	/**
-	 *指定したsubtableに描画
-	 *
-	 * @param {*} tableid
-	 * @memberof TetriminoInfo
-	 */
-	_drawOnSubtable(tableid){
-		for(let r=0; r<subtableRowCol; ++r){
-			for(let c=0; c<subtableRowCol; ++c){
-				changeSingleBlockColor(r,c,STYLE_BLANK,tableid);
-			}
-		}
-		for(let i=0; i<this.tetrimino.length; ++i){
-			let block=this.tetrimino[i];
-			changeSingleBlockColor(block[0]+2, block[1]+1, this.style, tableid);
-		}
-	}
-
-	drawOnNextTable(){
-		this._drawOnSubtable("nexttable");
-	}
-
-	drawOnHoldTable(){
-		this._drawOnSubtable("holdtable");
-	}
-
-	/**
 	 *初期位置に戻す
 	 *
 	 * @memberof TetriminoInfo
 	 */
-	setInitPosition(){
+	setAtInitPosition(){
 		this.row=initrow;
 		this.column=initcolumn;
 	}
@@ -430,7 +493,7 @@ class TetriminoInfo{
 	 *
 	 * @memberof TetriminoInfo
 	 */
-	setInitRotation(){
+	setAtInitRotation(){
 		while(this.rotateSum!=0){
 			let num=this.rotateSum>0? -1:1;
 			this.tetrimino=this._canRotate(num, true);
@@ -481,9 +544,9 @@ function tickWaiting(){
 		gameState=STATE_GAMEOVER;
 		return;
 	}
-	currentTetriminoInfo.draw();
+	drawCurrentTetriminoInfo();
 	if(nextTetriminoInfo!=null){
-		nextTetriminoInfo.drawOnNextTable();
+		drawNextBoard();
 	}
 	gameState=STATE_DROPPING;
 }
@@ -497,7 +560,7 @@ function tickDropping(){
 		gameState=STATE_WAIT;
 	}
 	else{
-		drawAllBlock();
+		drawMainBoard();
 		let dropped=currentTetriminoInfo.drop()
 		if(dropped){ //落下できた場合
 			fixCount=TICK_FIX;
@@ -505,7 +568,7 @@ function tickDropping(){
 		else{
 			fixCount-=1;
 			if(fixCount<=0){
-				currentTetriminoInfo.draw();
+				drawCurrentTetriminoInfo();
 				currentTetriminoInfo.putOnCurrentPosition();
 				currentTetriminoInfo=null;
 				holdUsed=false;
@@ -521,7 +584,7 @@ function tickDropping(){
  */
 function tickErasing(){
 	eraseFilledLine();
-	drawAllBlock();
+	drawMainBoard();
 	gameState=STATE_WAIT;
 }
 
@@ -539,7 +602,9 @@ function eraseFilledLine(){
 	});
 	while(blockArray.length<rowCount){
 		blockArray.unshift(generateNewRowLine());
+		deletedLineSum+=1;
 	}
+	drawLineSumLabel();
 }
 
 /**

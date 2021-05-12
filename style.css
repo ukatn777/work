@@ -1,6 +1,7 @@
 body{
     background-color: #000000;
 }
+
 #blocktable{
     margin: 10 auto;
     width: 400px;
@@ -15,6 +16,13 @@ body{
 
 .float{
     float: left;
+    margin-right: 20px;
+}
+
+.tableLabel{
+    text-align: center;
+    color: #FFFFFF;
+    font-size: 20pt;
 }
 
 /*空のブロックの色*/
