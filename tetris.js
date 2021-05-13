@@ -5,6 +5,7 @@ var context=null;
 var blockSize=40;
 var blankColor='#222222';
 var blockColors=['#00FFFF', '#FF8000', '#0000FF', '#8000FF', '#FF0000', '#00FF00', '#FFFF00'];
+var deadBlockColor='#666666';
 
 var rowCount=20;
 var columnCount=10;
@@ -63,6 +64,7 @@ var holdTetriminoInfo;
 var fixCount;
 var holdUsed;
 var deletedLineSum;
+var deadLineRow;
 
 $(document).ready(function(){
 	canvas=$("#canvas")[0];
@@ -151,6 +153,7 @@ function initializeGame(){
 	fixCount=TICK_FIX;
 	holdUsed=false;
 	deletedLineSum=0;
+	deadLineRow=rowCount-1;
 
 	context.clearRect(0,0,canvas.width,canvas.height);
 	drawMainBoard();
@@ -158,6 +161,8 @@ function initializeGame(){
 	drawHoldBoard();
 	drawConstantLabel();
 	drawLineSumLabel();
+
+	isCanvasDraw=false;
 
 	gameState=STATE_WAIT;
 }
@@ -701,5 +706,27 @@ function generateNewRowLine(){
 }
 
 function tickGameOver(){
-	console.log("GAME OVER");
+	if(deadLineRow>=0){
+		let line=blockArray[deadLineRow];
+		let x=mainBoardX;
+		let y=mainBoardY+blockSize*deadLineRow;
+		for(let c=0;c<columnCount;++c){
+			block=line[c];
+			if(block>=0){
+				drawSingleBlock(x,y,deadBlockColor);
+			}
+			x+=blockSize;
+		}
+		deadLineRow-=1;
+	}
+	else{
+		if(!isCanvasDraw){
+			context.fillStyle="#FFFFFF";
+			context.font="bold 100px serif";
+			let text="GAME OVER";
+			let width=context.measureText(text).width;
+			context.fillText(text,(canvas.width-width)/2,canvas.height/2);
+			isCanvasDraw=true;
+		}
+	}
 }
