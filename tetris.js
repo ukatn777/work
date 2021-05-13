@@ -1,6 +1,8 @@
 //描画の設定
-var canvas=null;
-var context=null;
+var canvas;
+var context;
+var bgm;
+var deleteSE;
 
 var blockSize=40;
 var blankColor='#222222';
@@ -71,6 +73,9 @@ $(document).ready(function(){
 	if(canvas.getContext){
 		context=canvas.getContext('2d');
 	}
+	bgm=$("#bgm")[0];
+	bgm.volume=0.2;
+	deleteSE=$("#deleteSE")[0];
 
 	$(document).on("keydown",function(eo){
 		if(gameState==STATE_TITLE){
@@ -172,6 +177,9 @@ function initializeGame(){
 	drawConstantLabel();
 	drawLineSumLabel();
 
+	bgm.currentTime=0;
+	bgm.play();
+
 	isCanvasDraw=false;
 
 	gameState=STATE_WAIT;
@@ -231,11 +239,15 @@ function drawSubBoard(startX,startY,boardRowCount,boardColumnCount,tetriminoInfo
 }
 
 function drawCurrentTetriminoInfo(){
-	drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo);
+	if(currentTetriminoInfo!=null){
+		drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo);
+	}
 }
 
 function undrawCurrentTetriminoInfo(){
-	drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo,blankColor);
+	if(currentTetriminoInfo!=null){
+		drawTetrimino(mainBoardX,mainBoardY,currentTetriminoInfo,blankColor);
+	}
 }
 
 function drawConstantLabel(){
@@ -709,9 +721,15 @@ function eraseFilledLine(){
 		}
 		return false;
 	});
+	let isDeleted=false;
 	while(blockArray.length<rowCount){
 		blockArray.unshift(generateNewRowLine());
 		deletedLineSum+=1;
+		isDeleted=true;
+	}
+	if(isDeleted){
+		deleteSE.currentTime=0;
+		deleteSE.play();
 	}
 	drawLineSumLabel();
 }
@@ -749,6 +767,7 @@ function tickGameOver(){
 			let width=context.measureText(text).width;
 			context.fillText(text,(canvas.width-width)/2,canvas.height/2);
 			isCanvasDraw=true;
+			bgm.pause();
 		}
 	}
 }
