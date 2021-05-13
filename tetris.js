@@ -109,6 +109,9 @@ $(document).ready(function(){
 				case "ArrowDown":
 					currentTetriminoInfo.drop();
 					break;
+				case "ArrowUp":
+					currentTetriminoInfo.hardDrop();
+					break;
 				case "z":
 					currentTetriminoInfo.rotate(-1);
 					break;
@@ -124,6 +127,13 @@ $(document).ready(function(){
 			drawCurrentTetriminoInfo();
 		}
 	}));
+
+	$(document).on("keydown",function(eo){
+		if(gameState==STATE_GAMEOVER && isCanvasDraw){
+			isCanvasDraw=false;
+			gameState=STATE_TITLE;
+		}
+	});
 
 	gameState=STATE_TITLE;
 
@@ -173,7 +183,8 @@ function drawHelp(){
 	drawTextAlignCenter("C : Rotate Right",canvas.width/2,175,50);
 	drawTextAlignCenter("<- : Move Left",canvas.width/2,250,50);
 	drawTextAlignCenter("-> : Move Right",canvas.width/2,325,50);
-	drawTextAlignCenter("Shift : hold",canvas.width/2,400,50);
+	drawTextAlignCenter("up : Hard drop",canvas.width/2,400,50);
+	drawTextAlignCenter("Shift : hold",canvas.width/2,475,50);
 	
 	drawTextAlignCenter("back : Escape",canvas.width/2,600,50);
 }
@@ -456,6 +467,17 @@ class TetriminoInfo{
 		return result;
 	}
 
+	hardDrop(){
+		undrawCurrentTetriminoInfo();
+		while(this._canDrop()){
+			this.row+=1;
+		}
+		this.putOnCurrentPosition();
+		drawCurrentTetriminoInfo();
+		currentTetriminoInfo=null;
+		gameState=STATE_ERASING;
+	}
+
 	/**
 	 *横に移動できるかを調べる
 	 *private
@@ -658,7 +680,6 @@ function tickDropping(){
 				drawCurrentTetriminoInfo();
 				currentTetriminoInfo.putOnCurrentPosition();
 				currentTetriminoInfo=null;
-				holdUsed=false;
 				gameState=STATE_ERASING;
 			}
 		}
@@ -670,6 +691,7 @@ function tickDropping(){
  * 
  */
 function tickErasing(){
+	holdUsed=false;
 	eraseFilledLine();
 	drawMainBoard();
 	gameState=STATE_WAIT;
